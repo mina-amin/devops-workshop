@@ -1,6 +1,10 @@
 #!/bin/bash
 
+<<<<<<< HEAD
 WEBHOOK_URL="https://discord.com/api/webhooks/1312700344979034173/c8W8To8hpn-dCB9DfYM9ASLQIb0ol9XNE7uj5cNbVtEcNdtLrBM6jnjPEINW1OIRQgm1"
+=======
+WEBHOOK_URL="webhook_url"
+>>>>>>> 2c7e4a9 (Adding assignment history)
 HOSTNAME=$(hostname)
 DATE=$(date)
 ALERT_DAYS=10  # Number of days before expiration to send an alert
@@ -64,4 +68,8 @@ curl -s -H "Content-Type: application/json" \
       {\"name\": \"Output\", \"value\": \"\`\`\`$ESCAPED_OUTPUT\`\`\`\"}
     ]
   }]
+<<<<<<< HEAD
 }" "$WEBHOOK_URL"
+=======
+}" "$WEBHOOK_URL"
+>>>>>>> 2c7e4a9 (Adding assignment history)
