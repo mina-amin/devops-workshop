@@ -1,0 +1,7 @@
+---
+- import_tasks: system.yml
+- import_tasks: php.yml
+- import_tasks: db.yml
+- import_tasks: deploy.yml
+- import_tasks: artisan.yml
+- import_tasks: nginx.yml

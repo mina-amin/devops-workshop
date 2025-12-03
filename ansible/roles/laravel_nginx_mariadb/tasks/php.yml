@@ -1,0 +1,3 @@
+---
+- name: Install PHP using script
+  script: files/install_php.sh {{ php_version }}

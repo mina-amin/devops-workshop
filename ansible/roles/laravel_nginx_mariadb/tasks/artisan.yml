@@ -1,0 +1,12 @@
+- name: Run artisan commands
+  command: "php artisan {{ item }}"
+  args:
+    chdir: "{{ app_dir }}"
+  loop:
+    - key:generate --no-interaction
+    - config:cache
+    - storage:link
+    - route:cache
+    - migrate --force
+    - db:seed --force
+  failed_when: false
