@@ -1,0 +1,68 @@
+---
+- name: Remove temporary repo directory
+  file:
+    path: /tmp/repo_tmp/
+    state: absent
+
+- name: Create temporary repo directory
+  file:
+    path: /tmp/repo_tmp/
+    state: directory
+    owner: root
+    group: root
+    mode: '0744'
+
+- name: Clone Laravel project
+  git:
+    repo: "{{ repo_ssh }}"
+    version: "{{ repo_branch }}"
+    dest: "/tmp/repo_tmp/"
+    key_file: "{{ ssh_key_path if ssh_key_path is file else omit }}"
+    force: yes
+    accept_hostkey: yes
+
+- name: Clean old project directory
+  file:
+    path: "{{ app_dir }}"
+    state: absent
+
+- name: Move files to production directory
+  copy:
+    src: /tmp/repo_tmp/.
+    dest: "{{ app_dir }}"
+    remote_src: yes
+    owner: www-data
+    group: www-data
+    mode: '0755'
+
+- name: Create .env from example
+  copy:
+    src: "{{ app_dir }}/.env.example"
+    dest: "{{ app_dir }}/.env"
+    remote_src: yes
+    force: no
+
+- name: Install composer
+  apt:
+    name: composer
+    state: present
+
+- name: Install dependencies
+  command: composer install --no-interaction --prefer-dist
+  args:
+    chdir: "{{ app_dir }}"
+
+- name: Update .env
+  lineinfile:
+    path: "{{ app_dir }}/.env"
+    regexp: "^{{ item.key }}="
+    line: "{{ item.key }}={{ item.value }}"
+    create: yes
+  loop:
+    - { key: "APP_URL", value: "http://{{ server_name }}" }
+    - { key: "DB_CONNECTION", value: "mysql" }
+    - { key: "DB_HOST", value: "127.0.0.1" }
+    - { key: "DB_PORT", value: "3306" }
+    - { key: "DB_DATABASE", value: "{{ db_name }}" }
+    - { key: "DB_USERNAME", value: "{{ db_user }}" }
+    - { key: "DB_PASSWORD", value: "{{ db_password }}" }

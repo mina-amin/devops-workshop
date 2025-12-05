@@ -1,0 +1,12 @@
+project_name: # your laravel project name
+app_dir: /var/www/html/{{ project_name }}
+repo_ssh: # Change to your repo SSH URL if private, else use HTTPS URL
+repo_branch: # branch name
+ssh_key_path: ~/.ssh/id_ed25519
+server_name: # name or IP of your server
+php_version: # Make Sure of the PHP version in your project, else you are lost.
+
+db_name: #database name
+db_user: #database user
+db_password: #database user password
+db_root_password: #database root password
