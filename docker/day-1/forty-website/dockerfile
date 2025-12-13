@@ -1,0 +1,11 @@
+FROM nginx:latest
+
+RUN apt update && apt install -y wget unzip
+
+RUN wget -O forty.zip https://html5up.net/forty/download
+
+RUN unzip forty.zip -d forty
+
+RUN cp -r forty/* /usr/share/nginx/html/
+
+CMD ["nginx", "-g", "daemon off;"]
