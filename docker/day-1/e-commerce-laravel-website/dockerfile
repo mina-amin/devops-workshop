@@ -1,0 +1,12 @@
+FROM alpine:latest AS builder
+RUN apk add --no-cache git composer npm php8.1 php8.1-fpm mariadb-client \
+    && git clone https://github.com/Prajwal100/Complete-Ecommerce-in-laravel-10.git \
+    && cp Complete-Ecommerce-in-laravel-10/.env.example Complete-Ecommerce-in-laravel-10/.env \
+    && cp -r Complete-Ecommerce-in-laravel-10/* /usr/share/nginx/html \
+    && rm -rf Complete-Ecommerce-in-laravel-10 \
+    && cd /usr/share/nginx/html \
+    && composer install \
+    && npm install \
+    && php artisan key:generate \
+    && php artisan migrate --seed \
+    && php artisan storage:link \
