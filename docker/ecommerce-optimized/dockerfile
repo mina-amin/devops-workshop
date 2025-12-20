@@ -25,7 +25,7 @@ RUN composer install --no-dev --optimize-autoloader
 
 RUN npm install && npm run
 
-FROM php:8.1-fpm
+FROM php:8.1-fpm AS runtime
 
 RUN apt-get update && apt-get install -y \
     libpng-dev \
@@ -34,13 +34,11 @@ RUN apt-get update && apt-get install -y \
     libzip-dev \
     && docker-php-ext-install pdo pdo_mysql zip exif \
     && rm -rf /var/lib/apt/lists/*
+COPY --from=builder /app /app
 
-WORKDIR /var/www/html
+FROM nginx:alpine
 
-COPY --from=builder /app .
-
-RUN chown -R www-data:www-data storage bootstrap/cache
-
-RUN php artisan serve --host=localhost --port=8000
+COPY --from=runtime /app /var/www/html
+COPY docker/ecommerce-optimized/nginx.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 8000
