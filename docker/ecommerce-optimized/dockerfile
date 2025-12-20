@@ -18,11 +18,12 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 
 # RUN git clone https://github.com/Prajwal100/Complete-Ecommerce-in-laravel-10.git .
-RUN composer create-project laravel/laravel .
 
 RUN cp .env.example .env
 
 RUN composer install --no-dev --optimize-autoloader
+
+RUN composer create-project laravel/laravel .
 
 RUN npm install && npm run
 
