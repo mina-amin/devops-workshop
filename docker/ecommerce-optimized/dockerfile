@@ -13,11 +13,12 @@ RUN apt-get update && apt-get install -y \
     && docker-php-ext-install pdo pdo_mysql zip exif \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+# COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /app
 
-RUN git clone https://github.com/Prajwal100/Complete-Ecommerce-in-laravel-10.git .
+# RUN git clone https://github.com/Prajwal100/Complete-Ecommerce-in-laravel-10.git .
+RUN composer create-project laravel/laravel .
 
 RUN cp .env.example .env
 
