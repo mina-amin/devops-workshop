@@ -1,0 +1,324 @@
+---
+- name: Full setup for Laravel + Nginx + MariaDB
+  hosts: het
+  become: yes
+
+  vars:
+    project_name: test
+    app_dir: /var/www/html/{{ project_name }}
+    # Change to your repo SSH URL if private, else use HTTPS URL
+    repo_ssh: https://github.com/ekramasif/Inventory_Management_System.git
+    repo_branch: main
+    ssh_key_path: ~/.ssh/id_ed25519
+    server_name: 157.180.80.231
+    # Make Sure of the PHP version in your project, else you are lost.
+    php_version: 8.1
+    db_name: IMS
+    db_user: laravel_user
+    db_password: strongpassword123
+    db_root_password: root
+
+
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+
+    - name: Install basic dependencies, Nginx and MariaDB
+      apt:
+        name:
+          - software-properties-common
+          - unzip
+          - curl
+          - git
+          - nginx
+          - mariadb-client
+          - mariadb-server
+        state: present
+
+    - name: Run php installation bash script
+      script: install_php.sh {{php_version}}
+
+    # - name: Add PHP repository
+    #   apt_repository:
+    #     repo: ppa:ondrej/php
+    #     state: present
+    #     update_cache: yes
+
+    - name: Ensure Nginx, and MariaDB are started and enabled
+      service:
+        name: "{{ item }}"
+        state: started
+        enabled: yes
+      loop:
+        - nginx
+        - mariadb
+        # - "php{{ php_version }}-fpm"
+
+    - name: Setup DB
+      script: ./db_setup.sh "{{ db_root_password }}" "{{ db_name }}" "{{ db_user }}" "{{ db_password }}"
+
+
+    # - name: Run DB setup script
+    #   script: db_setup.sh
+    #     "{{ db_root_password }}"
+    #     "{{ db_name }}"
+    #     "{{ db_user }}"
+    #     "{{ db_password }}"
+
+    # - name: Create Laravel database
+    #   shell: |
+    #    mysql -u root -p"{{ db_root_password }}" -e
+    #    "CREATE DATABASE IF NOT EXISTS {{ db_name }};"
+    #   args:
+    #    warn: false
+
+    # - name: Ensure Laravel DB user exists
+    #   shell: |
+    #     mysql -u root -p"{{ db_root_password }}" -e
+    #     "CREATE USER IF NOT EXISTS '{{ db_user }}'@'localhost' IDENTIFIED BY '{{ db_password }}';"
+    #   args:
+    #     warn: false
+
+    # - name: Grant privileges to Laravel user
+    #   shell: |
+    #     mysql -u root -p"{{ db_root_password }}" -e
+    #     "GRANT ALL PRIVILEGES ON *.* TO '{{ db_user }}'@'localhost'; FLUSH PRIVILEGES;"
+    #   args:
+    #     warn: false
+
+    # - name: Create Laravel database
+    #   community.mysql.mysql_db:
+    #     name: "{{ db_name }}"
+    #     state: present
+    #     login_user: root
+    #     login_unix_socket: /var/run/mysqld/mysqld.sock
+
+    # - name: Create Laravel database user
+    #   community.mysql.mysql_user:
+    #     name: "{{ db_user }}"
+    #     password: "{{ db_password }}"
+    #     priv: "{{ db_name }}.*:ALL"
+    #     state: present
+    #     login_user: root
+    #     login_unix_socket: /var/run/mysqld/mysqld.sock
+
+    # - name: Create Laravel project directory
+    #   file:
+    #     path: "{{ app_dir }}"
+    #     state: directory
+    #     owner: www-data
+    #     group: www-data
+    #     mode: '0755'
+
+    - name: Remove temporary repo directory if exists
+      file:
+        path: /tmp/repo_tmp/
+        state: absent
+
+    - name: Ensure temporary repo directory exists
+      file:
+        path: /tmp/repo_tmp/
+        state: directory
+        owner: root
+        group: root
+        mode: '0744'
+
+    # - name: Configure SSH for GitHub on port 443 for security and speed
+    #   ansible.builtin.blockinfile:
+    #     path: ~/.ssh/config
+    #     create: yes
+    #     block: |
+    #       Host github.com
+    #         HostName ssh.github.com
+    #         User git
+    #         Port 443
+    #         IdentityFile ~/.ssh/id_rsa
+    #     mode: '0600'
+
+    # - name: Determine repo URL based on SSH key availability
+    #   set_fact:
+    #     repo_url: >-
+    #       {% if ssh_key_path is file %}
+    #       git@github.com:{{ repo_owner }}/{{ repo_name }}.git
+    #       {% else %}
+    #       https://github.com/{{ repo_owner }}/{{ repo_name }}.git
+    #       {% endif %}
+
+    - name: Clone Laravel project
+      ansible.builtin.git:
+        repo: "{{ repo_ssh }}"
+        version: "{{ repo_branch }}"
+        dest: "/tmp/repo_tmp/"
+        key_file: "{{ ssh_key_path if ssh_key_path is file else omit }}"
+        force: yes
+        accept_hostkey: yes
+
+    # - name: Copy directory contents to app_dir
+    #   ansible.builtin.command: cp -a /tmp/repo_tmp/. {{ app_dir }}
+
+    # - name: Detect project folder after git clone
+    #   shell: "ls -dt1 /var/www/html/*/ | head -1"
+    #   register: latest_dir
+
+    # - name: Strip trailing newline from latest_dir
+    #   set_fact:
+    #     project_path: "{{ latest_dir.stdout | trim }}"
+
+    - name: clean old project_name directory if exists
+      file:
+        path: "{{ app_dir }}"
+        state: absent
+
+    - name: Move all files from /tmp/repo_tmp/ to /var/www/html
+      ansible.builtin.copy:
+        src: /tmp/repo_tmp/.
+        remote_src: yes
+        dest: "{{ app_dir }}"
+        owner: www-data
+        group: www-data
+        mode: '0755'
+
+    - name: Create .env from .env.example if missing
+      copy:
+        src: "{{ app_dir }}/.env.example"
+        dest: "{{ app_dir }}/.env"
+        remote_src: yes
+        force: no
+
+    - name: Install Composer globally
+      ansible.builtin.apt:
+        name: composer
+        state: present
+
+    - name: Install Laravel dependencies
+      command: composer install --no-interaction --prefer-dist
+      args:
+        chdir: "{{ app_dir }}"
+
+    - name: Update Laravel .env file with database info
+      lineinfile:
+        path: "{{ app_dir }}/.env"
+        regexp: "^{{ item.key }}="
+        line: "{{ item.key }}={{ item.value }}"
+        create: yes
+      loop:
+        - { key: "APP_URL", value: "http://{{ server_name }}" }
+        - { key: "DB_CONNECTION", value: "mysql" }
+        - { key: "DB_HOST", value: "127.0.0.1" }
+        - { key: "DB_PORT", value: "3306" }
+        - { key: "DB_DATABASE", value: "{{ db_name }}" }
+        - { key: "DB_USERNAME", value: "{{ db_user }}" }
+        - { key: "DB_PASSWORD", value: "{{ db_password }}" }
+#############################################################################################
+    - name: Generate Laravel app key
+      command: php artisan key:generate --no-interaction
+      args:
+        chdir: "{{ app_dir }}"
+      ignore_errors: yes
+
+    - name: Cache config
+      command: php artisan config:cache
+      args:
+        chdir: "{{ app_dir }}"
+      ignore_errors: yes
+
+    - name: Cache config
+      command: php artisan storage:link
+      args:
+        chdir: "{{ app_dir }}"
+      ignore_errors: yes
+
+    - name: Cache routes
+      command: php artisan route:cache
+      args:
+        chdir: "{{ app_dir }}"
+      ignore_errors: yes
+
+    - name: Seed database
+      command: php artisan migrate:db
+      args:
+        chdir: "{{ app_dir }}"
+      ignore_errors: yes
+
+    - name: Run database migrations
+      command: php artisan db:seed
+      args:
+        chdir: "{{ app_dir }}"
+      ignore_errors: yes
+
+    - name: Start Laravel development server
+      command: php artisan serve > /dev/null 2>&1 &
+      args:
+        chdir: "{{ app_dir }}"
+      ignore_errors: yes
+
+############################################################################################
+    - name: Set correct permissions for storage and bootstrap cache
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: www-data
+        group: www-data
+        mode: '0775'
+      loop:
+        - "{{ app_dir }}/storage"
+        - "{{ app_dir }}/bootstrap/cache"
+        - "{{ app_dir }}/public/"
+
+    - name: Configure Nginx for Laravel
+      copy:
+        dest: /etc/nginx/sites-available/{{ project_name }}.conf
+        content: |
+          server {
+              listen 80;
+              server_name {{ server_name }};
+              root {{ app_dir }}/public;
+
+              index index.php index.html;
+
+              add_header X-Frame-Options "SAMEORIGIN";
+              add_header X-Content-Type-Options "nosniff";
+
+              location / {
+                  try_files $uri $uri/ /index.php?$query_string;
+              }
+
+              location ~ \.php$ {
+                  include snippets/fastcgi-php.conf;
+                  fastcgi_pass unix:/run/php/php{{ php_version }}-fpm.sock;
+                  fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
+                  include fastcgi_params;
+              }
+
+              location ~ /\.(?!well-known).* {
+                  deny all;
+              }
+          }
+    # - name: Remove sites-enabled directory
+    #   file:
+    #     path: /etc/nginx/sites-enabled
+    #     state: absent
+
+    # - name: Recreate sites-enabled directory
+    #   file:
+    #     path: /etc/nginx/sites-enabled
+    #     state: directory
+    #     mode: '0755'
+
+    - name: Enable Laravel site
+      file:
+        src: "/etc/nginx/sites-available/{{ project_name }}.conf"
+        dest: "/etc/nginx/sites-enabled/{{ project_name }}.conf"
+        state: link
+        force: yes
+
+    - name: Test and reload Nginx
+      command: nginx -t
+      notify: Reload Nginx
+
+  handlers:
+    - name: Reload Nginx
+      service:
+        name: nginx
+        state: reloaded
