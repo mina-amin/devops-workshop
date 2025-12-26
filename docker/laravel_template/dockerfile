@@ -29,7 +29,7 @@ COPY --from=composer /app /var/www
 RUN chmod -R 755 /var/www/storage \
     && chmod -R 755 /var/www/bootstrap/cache \
     && if [ -f .env.example ]; then cp .env.example .env; else \
-       echo "APP_NAME=Laravel" > .env && \
+       echo "APP_KEY=" > .env && \
        echo "APP_ENV=production" >> .env && \
        echo "APP_DEBUG=false" >> .env && \
        echo "APP_URL=http://localhost" >> .env && \
@@ -49,6 +49,6 @@ RUN chmod -R 755 /var/www/storage \
 COPY default.conf /etc/nginx/sites-available/default
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
-EXPOSE 80
+EXPOSE 8000
 
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
