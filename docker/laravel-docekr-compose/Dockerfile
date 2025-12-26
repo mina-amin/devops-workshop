@@ -29,4 +29,10 @@ RUN chown -R www-data:www-data /var/www/html
 RUN chmod -R 775 storage bootstrap/cache
 
 # Generate key on startup
-CMD php artisan key:generate --force 2>/dev/null || true && php-fpm
+CMD php artisan key:generate --force 2>/dev/null || true && php-fpm \
+    && sed -i 's/DB_CONNECTION=.*/DB_CONNECTION=mysql/' .env \
+    && sed -i 's/DB_HOST=.*/DB_HOST=db/' .env \
+    && sed -i 's/DB_PORT=.*/DB_PORT=3306/' .env \
+    && sed -i 's/DB_DATABASE=.*/DB_DATABASE=laravel/' .env \
+    && sed -i 's/DB_USERNAME=.*/DB_USERNAME=laravel/' .env \
+    && sed -i 's/DB_PASSWORD=.*/DB_PASSWORD=secret/' .env \
